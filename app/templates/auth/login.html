@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Log in · RAG MCP{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-copy">
+    <p class="eyebrow">Retrieval that agents can use</p>
+    <h1>Your documents,<br>answerable by anything.</h1>
+    <p class="lede">
+      Upload PDFs, Markdown and text. Chat with them in the browser, or hand your own
+      agent a knowledge-base token and let it search over MCP.
+    </p>
+    <ul class="feature-list">
+      <li><span>01</span> Six chunking strategies, sane defaults</li>
+      <li><span>02</span> Hybrid search with optional reranking</li>
+      <li><span>03</span> Remote MCP server, one token per library</li>
+    </ul>
+  </div>
+
+  <div class="card auth-card">
+    <h2>Log in</h2>
+    <p class="muted">Welcome back.</p>
+    <form method="post" action="{{ url_for('auth.login') }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ next or '' }}">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" value="{{ email or '' }}" autocomplete="email" required autofocus>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <button class="btn btn-primary" type="submit">Log in</button>
+    </form>
+    <p class="auth-alt">No account? <a href="{{ url_for('auth.signup') }}">Create one</a></p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Knowledge bases · RAG MCP{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">Workspace</p>
+    <h1>Knowledge bases</h1>
+    <p class="lede">Each one has its own documents, chunking, retrieval settings and agent token.</p>
+  </div>
+  <details class="new-kb">
+    <summary class="btn btn-primary">New knowledge base</summary>
+    <form method="post" action="{{ url_for('knowledge_bases.create') }}" class="card popover stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field">
+        <span>Name</span>
+        <input type="text" name="name" maxlength="120" placeholder="Product manuals" required autofocus>
+      </label>
+      <label class="field">
+        <span>Description <em>optional</em></span>
+        <input type="text" name="description" maxlength="400" placeholder="What lives in here?">
+      </label>
+      <button class="btn btn-primary" type="submit">Create</button>
+    </form>
+  </details>
+</section>
+
+{% if knowledge_bases %}
+  <div class="kb-grid">
+    {% for kb in knowledge_bases %}
+      <a class="card kb-card" href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">
+        <div class="kb-card-head">
+          <h2>{{ kb.name }}</h2>
+          <span class="pill">{{ counts.get(kb.id, 0) }} docs</span>
+        </div>
+        <p class="muted">{{ kb.description or "No description yet." }}</p>
+        <dl class="kb-meta">
+          <div><dt>Chunking</dt><dd>{{ kb.chunk_strategy }}</dd></div>
+          <div><dt>Retrieval</dt><dd>{{ kb.retrieval_mode }}</dd></div>
+          <div><dt>Top k</dt><dd>{{ kb.top_k }}</dd></div>
+        </dl>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty card">
+    <h2>Nothing here yet</h2>
+    <p class="muted">Create a knowledge base, then drop in a PDF, Markdown or text file.</p>
+  </div>
+{% endif %}
+{% endblock %}

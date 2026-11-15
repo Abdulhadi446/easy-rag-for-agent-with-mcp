@@ -1,0 +1,30 @@
+SUPPORT MACROS — INTERNAL USE ONLY
+
+Macro 12 — Late delivery
+Apologise for the delay. Check the tracking link. If the parcel has not moved for three
+business days, open a carrier investigation and offer a replacement or a refund. Do not
+promise a delivery date that the carrier has not confirmed.
+
+Macro 14 — Damaged on arrival
+Ask for photos of the packaging and the item. If the damage is reported within 48 hours,
+send a replacement immediately and arrange collection of the damaged item. Outside 48 hours,
+offer a replacement at 50% of list price.
+
+Macro 19 — VAT invoice request
+Business customers can download VAT invoices from Billing → Invoices. If the VAT number is
+missing, ask them to add it under Company profile and allow one business day for validation.
+
+Macro 23 — Account deletion
+Confirm the request in writing. Explain that tax records are kept for seven years and that
+the account itself is deleted within 30 days. Escalate to the privacy team if the customer
+asks about a data export.
+
+Macro 31 — Escalation to a human
+Use this macro when the customer mentions legal action, a regulator, or a security incident.
+Do not discuss fault. Collect the order number and contact details, then escalate to the
+duty manager. Security incidents go to security@northwind.example immediately.
+
+Macro 40 — Out-of-warranty repair
+Quote the standard repair fee: 35 EUR plus parts. Tell the customer the repair has a
+90-day guarantee. If the repair costs more than 60% of the current list price, offer a
+discount on a new unit instead.

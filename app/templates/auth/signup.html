@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Create account · RAG MCP{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-copy">
+    <p class="eyebrow">Start with zero configuration</p>
+    <h1>Upload a PDF.<br>Ask it a question.</h1>
+    <p class="lede">
+      No settings to tune to get going. Recursive chunking, hybrid retrieval and a top-5
+      context window are already chosen for you — every knob is available when you want it.
+    </p>
+    <ul class="feature-list">
+      <li><span>01</span> Citations with filename, page and heading</li>
+      <li><span>02</span> Re-ingest after changing chunking</li>
+      <li><span>03</span> Simple and agentic chat modes</li>
+    </ul>
+  </div>
+
+  <div class="card auth-card">
+    <h2>Create account</h2>
+    <p class="muted">One workspace, as many knowledge bases as you need.</p>
+    <form method="post" action="{{ url_for('auth.signup') }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field">
+        <span>Name <em>optional</em></span>
+        <input type="text" name="display_name" value="{{ display_name or '' }}" autocomplete="name" maxlength="120">
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" name="email" value="{{ email or '' }}" autocomplete="email" required autofocus>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" name="password" autocomplete="new-password" minlength="8" required>
+        <small>At least 8 characters.</small>
+      </label>
+      <button class="btn btn-primary" type="submit">Create account</button>
+    </form>
+    <p class="auth-alt">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Chat · {{ kb.name }}{% endblock %}
+{% block head %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endblock %}
+{% block content %}
+<p class="eyebrow">
+  <a href="{{ url_for('knowledge_bases.index') }}">Knowledge bases</a> /
+  <a href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">{{ kb.name }}</a> / chat
+</p>
+
+<div class="chat-shell" data-kb="{{ kb.id }}" data-stream="{{ url_for('chat.stream', kb_id=kb.id) }}">
+  <header class="chat-head">
+    <div>
+      <h1>{{ kb.name }}</h1>
+      <p class="muted">{{ ready_documents }} ready document{{ '' if ready_documents == 1 else 's' }} · answers cite their sources</p>
+    </div>
+    <div class="mode-switch" role="group" aria-label="Chat mode">
+      <button type="button" class="mode-btn" data-mode="simple">Simple RAG</button>
+      <button type="button" class="mode-btn" data-mode="agentic">Agentic</button>
+    </div>
+  </header>
+
+  <p class="mode-note" data-mode-note></p>
+
+  <nav class="tabs" aria-label="Knowledge base sections">
+    <a class="tab" href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">Documents</a>
+    <a class="tab is-active" href="{{ url_for('chat.page', kb_id=kb.id) }}">Chat</a>
+    <a class="tab" href="{{ url_for('kb_settings.page', kb_id=kb.id) }}">Settings</a>
+    <a class="tab" href="{{ url_for('tokens.page', kb_id=kb.id) }}">Connect an agent</a>
+  </nav>
+
+  {% if not llm_configured %}
+  <div class="callout callout-error">
+    <strong>No chat model configured.</strong> Retrieval still works, but answers need an
+    <code>LLM_API_KEY</code> (or an OpenAI-compatible endpoint) in <code>.env</code>. Agents can
+    connect over MCP without one.
+  </div>
+  {% endif %}
+
+  <div class="chat-log" id="chat-log" aria-live="polite">
+    <div class="chat-empty" id="chat-empty">
+      <p class="eyebrow">Ask the library</p>
+      <h2>Grounded answers, with receipts</h2>
+      <p class="muted">Every answer is built from your documents and links back to the page it came from. Nothing is sent anywhere except your configured model.</p>
+      <div class="prompt-grid">
+        <button type="button" class="prompt-chip">Summarise the key points of my documents</button>
+        <button type="button" class="prompt-chip">What do the documents say about pricing?</button>
+        <button type="button" class="prompt-chip">Find any mentions of security or privacy</button>
+      </div>
+    </div>
+  </div>
+
+  <form class="chat-composer" id="chat-form">
+    <textarea id="chat-input" rows="2" maxlength="4000" placeholder="Ask a question about these documents…" required></textarea>
+    <div class="composer-row">
+      <span class="composer-hint">Enter to send · Shift+Enter for a new line</span>
+      <button class="btn" type="submit" id="chat-send">Send</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(() => {
+  const shell = document.querySelector(".chat-shell");
+  const log = document.getElementById("chat-log");
+  const empty = document.getElementById("chat-empty");
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("chat-input");
+  const send = document.getElementById("chat-send");
+  const note = document.querySelector("[data-mode-note]");
+  const csrf = document.querySelector('meta[name="csrf-token"]').content;
+  const history = [];
+  let mode = "simple";
+  let busy = false;
+
+  const notes = {
+    simple: "Simple RAG: one retrieval pass, then a grounded answer. Fast and predictable.",
+    agentic: "Agentic: the model can search several times, rephrase, and read around hits before answering. Slower, better on multi-part questions."
+  };
+  const labels = { search_documents: "Searching", get_document_chunk: "Reading chunk", get_surrounding_context: "Expanding context", get_document_outline: "Reading outline", list_documents: "Listing documents" };
+
+  const setMode = (next) => {
+    mode = next;
+    document.querySelectorAll(".mode-btn").forEach((btn) => btn.classList.toggle("is-active", btn.dataset.mode === mode));
+    note.textContent = notes[mode];
+  };
+  document.querySelectorAll(".mode-btn").forEach((btn) => btn.addEventListener("click", () => {
+    if (!busy) setMode(btn.dataset.mode);
+  }));
+  setMode({{ default_mode | tojson }});
+
+  document.querySelectorAll(".prompt-chip").forEach((chip) => chip.addEventListener("click", () => {
+    input.value = chip.textContent;
+    input.focus();
+  }));
+
+  const scroll = () => { log.scrollTop = log.scrollHeight; };
+
+  const escapeHtml = (value) => value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+  const inline = (value) => escapeHtml(value)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[(\d+)\]/g, '<span class="cite">[$1]</span>');
+
+  const renderMarkdown = (source) => {
+    const lines = source.split("\n");
+    const out = [];
+    let list = null;
+    const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      if (!line.trim()) { closeList(); continue; }
+      const heading = line.match(/^(#{1,4})\s+(.*)$/);
+      if (heading) {
+        closeList();
+        const level = Math.min(4, heading[1].length + 2);
+        out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+        continue;
+      }
+      const bullet = line.match(/^\s*[-*]\s+(.*)$/);
+      if (bullet) {
+        if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+        out.push(`<li>${inline(bullet[1])}</li>`);
+        continue;
+      }
+      const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (numbered) {
+        if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; }
+        out.push(`<li>${inline(numbered[1])}</li>`);
+        continue;
+      }
+      closeList();
+      out.push(`<p>${inline(line)}</p>`);
+    }
+    closeList();
+    return out.join("");
+  };
+
+  const addMessage = (role, text = "") => {
+    empty?.remove();
+    const article = document.createElement("article");
+    article.className = `msg msg-${role}`;
+    const who = document.createElement("div");
+    who.className = "msg-who";
+    who.textContent = role === "user" ? "You" : "Assistant";
+    const body = document.createElement("div");
+    body.className = "msg-body";
+    body.textContent = text;
+    article.append(who, body);
+    log.append(article);
+    scroll();
+    return { article, body };
+  };
+
+  const renderSources = (article, sources) => {
+    if (!sources || !sources.length) return;
+    const wrap = document.createElement("div");
+    wrap.className = "sources";
+    const title = document.createElement("p");
+    title.className = "sources-title";
+    title.textContent = `Sources · ${sources.length}`;
+    wrap.append(title);
+    for (const source of sources) {
+      const details = document.createElement("details");
+      details.className = "source";
+      const summary = document.createElement("summary");
+      const page = source.page_number ? `, page ${source.page_number}` : "";
+      summary.innerHTML = `<span class="source-n">[${source.n}]</span> <strong></strong><span class="source-meta"></span>`;
+      summary.querySelector("strong").textContent = source.filename || "document";
+      summary.querySelector(".source-meta").textContent = `${page}${source.heading_path ? " · " + source.heading_path : ""}`;
+      const text = document.createElement("p");
+      text.className = "source-text";
+      text.textContent = source.text || "";
+      details.append(summary, text);
+      wrap.append(details);
+    }
+    article.append(wrap);
+  };
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const question = input.value.trim();
+    if (!question || busy) return;
+    busy = true;
+    send.disabled = true;
+    input.value = "";
+    addMessage("user", question);
+    const { article, body } = addMessage("assistant");
+    body.classList.add("is-streaming");
+    const tools = document.createElement("div");
+    tools.className = "tool-trace";
+
+    try {
+      const response = await fetch(shell.dataset.stream, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf, "Accept": "text/event-stream" },
+        body: JSON.stringify({ message: question, mode, history }),
+      });
+      if (!response.ok || !response.body) throw new Error(`Request failed (${response.status})`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let split;
+        while ((split = buffer.indexOf("\n\n")) !== -1) {
+          const raw = buffer.slice(0, split);
+          buffer = buffer.slice(split + 2);
+          const eventLine = raw.split("\n").find((line) => line.startsWith("event: "));
+          const dataLine = raw.split("\n").find((line) => line.startsWith("data: "));
+          if (!eventLine || !dataLine) continue;
+          const name = eventLine.slice(7).trim();
+          const data = JSON.parse(dataLine.slice(6));
+          if (name === "token") {
+            body.textContent += data.text;
+            scroll();
+          } else if (name === "tool") {
+            const chip = document.createElement("span");
+            chip.className = "tool-chip";
+            chip.textContent = `${labels[data.name] || data.name} · ${data.call}/${data.limit}`;
+            tools.append(chip);
+            if (!tools.isConnected) article.insertBefore(tools, body);
+            scroll();
+          } else if (name === "citations") {
+            renderSources(article, data.sources);
+            scroll();
+          } else if (name === "error") {
+            body.textContent = data.message || "Something went wrong.";
+            body.classList.add("is-error");
+          }
+        }
+      }
+      const answerText = body.textContent;
+      if (answerText.trim()) {
+        history.push({ role: "user", content: question }, { role: "assistant", content: answerText });
+        body.innerHTML = renderMarkdown(answerText);
+      } else {
+        body.textContent = "No answer was returned. Try again.";
+      }
+      scroll();
+    } catch (error) {
+      body.textContent = error.message || "Could not reach the server.";
+      body.classList.add("is-error");
+    } finally {
+      body.classList.remove("is-streaming");
+      busy = false;
+      send.disabled = false;
+      input.focus();
+      scroll();
+    }
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  });
+})();
+</script>
+{% endblock %}

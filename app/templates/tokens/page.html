@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Connect an agent · {{ kb.name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">
+  <a href="{{ url_for('knowledge_bases.index') }}">Knowledge bases</a> /
+  <a href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">{{ kb.name }}</a> / connect
+</p>
+
+<section class="page-head">
+  <div>
+    <h1>Connect an agent</h1>
+    <p class="lede">This knowledge base speaks MCP over streamable HTTP. Point any MCP-capable agent at the URL below and give it the token.</p>
+  </div>
+</section>
+
+<nav class="tabs" aria-label="Knowledge base sections">
+  <a class="tab" href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">Documents</a>
+  <a class="tab" href="{{ url_for('chat.page', kb_id=kb.id) }}">Chat</a>
+  <a class="tab" href="{{ url_for('kb_settings.page', kb_id=kb.id) }}">Settings</a>
+  <a class="tab is-active" href="{{ url_for('tokens.page', kb_id=kb.id) }}">Connect an agent</a>
+</nav>
+
+{% if revealed %}
+<section class="callout token-reveal">
+  <p class="eyebrow">New token · copy it now</p>
+  <p>This value is shown once. If you lose it, rotate the token.</p>
+  <div class="copy-row">
+    <code id="new-token">{{ revealed }}</code>
+    <button class="btn btn-small" type="button" data-copy="#new-token">Copy</button>
+  </div>
+</section>
+{% endif %}
+
+<div class="connect-grid">
+  <section class="card connect-card">
+    <p class="eyebrow">Endpoint</p>
+    <h2>Remote MCP server</h2>
+    <p class="muted">Authenticated with the token in an <code>Authorization</code> header. Every tool call is scoped to this knowledge base only.</p>
+    <div class="copy-row">
+      <code id="mcp-url">{{ mcp_url }}</code>
+      <button class="btn btn-small btn-ghost" type="button" data-copy="#mcp-url">Copy</button>
+    </div>
+
+    <h3>Client configuration</h3>
+    <pre class="snippet" id="snippet">{
+  "mcpServers": {
+    "{{ kb.name | replace(' ', '-') | lower }}": {
+      "type": "http",
+      "url": "{{ mcp_url }}",
+      "headers": {
+        "Authorization": "Bearer {{ revealed or 'YOUR_TOKEN' }}"
+      }
+    }
+  }
+}</pre>
+    <button class="btn btn-small btn-ghost" type="button" data-copy="#snippet">Copy config</button>
+  </section>
+
+  <section class="card connect-card">
+    <p class="eyebrow">Tools</p>
+    <h2>What the agent can do</h2>
+    <ul class="tool-list">
+      <li><code>search_documents</code><span>Search this knowledge base and get chunks with citations.</span></li>
+      <li><code>list_documents</code><span>See every document, its status and page count.</span></li>
+      <li><code>get_document_chunk</code><span>Fetch one chunk by id.</span></li>
+      <li><code>get_surrounding_context</code><span>Expand before or after a hit.</span></li>
+      <li><code>get_document_outline</code><span>Browse headings to navigate a long document.</span></li>
+    </ul>
+    <p class="muted small">Tool descriptions tell the agent when to search again or drill in, so agentic RAG works without extra prompting.</p>
+  </section>
+</div>
+
+<section class="card token-card">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Credentials</p>
+      <h2>Tokens</h2>
+    </div>
+    {% if not tokens or tokens | selectattr('revoked_at') | list | length == tokens | length %}
+    <form method="post" action="{{ url_for('tokens.create', kb_id=kb.id) }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="field-compact" type="text" name="name" placeholder="agent name" maxlength="120">
+      <button class="btn btn-small" type="submit">Create token</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if tokens %}
+  <div class="card table-card">
+    <table class="doc-table">
+      <thead>
+        <tr><th>Name</th><th>Prefix</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for token in tokens %}
+        <tr>
+          <td>{{ token.name }}</td>
+          <td><code>{{ token.prefix }}…</code></td>
+          <td>{{ token.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>{{ token.last_used_at.strftime('%Y-%m-%d %H:%M') if token.last_used_at else 'never' }}</td>
+          <td>
+            {% if token.revoked_at %}<span class="status status-failed">revoked</span>
+            {% else %}<span class="status status-ready">active</span>{% endif %}
+          </td>
+          <td class="row-actions">
+            {% if not token.revoked_at %}
+            <form method="post" action="{{ url_for('tokens.rotate', kb_id=kb.id, token_id=token.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-small btn-ghost" type="submit">Rotate</button>
+            </form>
+            <form method="post" action="{{ url_for('tokens.revoke', kb_id=kb.id, token_id=token.id) }}"
+                  onsubmit="return confirm('Revoke this token? Agents using it will stop working.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-small btn-danger" type="submit">Revoke</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">No tokens yet. Create one to connect an agent.</p>
+  {% endif %}
+</section>
+
+<script>
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      const target = document.querySelector(button.dataset.copy);
+      try {
+        await navigator.clipboard.writeText(target.textContent);
+        const label = button.textContent;
+        button.textContent = "Copied";
+        setTimeout(() => (button.textContent = label), 1400);
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+      }
+    });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ document.filename }} · {{ kb.name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">
+  <a href="{{ url_for('knowledge_bases.index') }}">Knowledge bases</a> /
+  <a href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">{{ kb.name }}</a> / document
+</p>
+
+<section class="page-head doc-head">
+  <div>
+    <h1>{{ document.filename }}</h1>
+    <p class="lede muted">
+      <span class="status status-{{ document.status }}">{{ document.status }}</span>
+      <span>{{ "%.1f"|format(document.size_bytes / 1024) }} KB</span>
+      {% if document.page_count %}<span>· {{ document.page_count }} pages</span>{% endif %}
+      <span>· {{ document.chunk_count }} chunks</span>
+      <span>· uploaded {{ document.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+    </p>
+  </div>
+  <div class="doc-head-actions">
+    <form method="post" action="{{ url_for('documents.reprocess', kb_id=kb.id, document_id=document.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost" type="submit">Re-index</button>
+    </form>
+    <form method="post" action="{{ url_for('documents.delete', kb_id=kb.id, document_id=document.id) }}"
+          onsubmit="return confirm('Delete this document and all of its chunks?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost btn-danger" type="submit">Delete</button>
+    </form>
+  </div>
+</section>
+
+{% if document.error %}
+  <div class="callout callout-error" role="alert">
+    <strong>Processing failed.</strong> {{ document.error }}
+  </div>
+{% endif %}
+
+<div class="doc-grid">
+  <section class="card outline-card">
+    <p class="eyebrow">Outline</p>
+    {% if document.outline %}
+      <ul class="outline">
+        {% for item in document.outline %}
+          <li class="outline-item level-{{ item.level }}" style="--depth: {{ item.level - 1 }}">
+            <span class="outline-title">{{ item.title }}</span>
+            {% if item.page %}<span class="pill pill-soft">p. {{ item.page }}</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No headings detected. The document was chunked by paragraphs and sentences.</p>
+    {% endif %}
+  </section>
+
+  <section class="card meta-card">
+    <p class="eyebrow">Index details</p>
+    <dl class="meta-list">
+      <dt>Strategy</dt><dd>{{ document.meta.get("strategy", kb.chunk_strategy) }}</dd>
+      <dt>Embedding model</dt><dd class="mono">{{ document.meta.get("embedding_model", kb.embedding_model) }}</dd>
+      <dt>Characters extracted</dt><dd>{{ document.meta.get("char_count", "—") }}</dd>
+      <dt>Last processed</dt><dd>{{ document.processed_at.strftime("%Y-%m-%d %H:%M") if document.processed_at else "—" }}</dd>
+      <dt>SHA-256</dt><dd class="mono doc-hash">{{ document.sha256[:16] }}…</dd>
+    </dl>
+  </section>
+</div>
+
+<section class="chunk-section">
+  <div class="section-head">
+    <h2>Chunks</h2>
+    <p class="muted">Exactly what the retriever can return, in document order.</p>
+  </div>
+  {% if chunks %}
+    <div class="chunk-list">
+      {% for chunk in chunks %}
+        <details class="chunk">
+          <summary>
+            <span class="chunk-index">#{{ chunk.chunk_index }}</span>
+            <span class="chunk-heading">{{ chunk.heading_path or "—" }}</span>
+            {% if chunk.page_number %}<span class="pill pill-soft">p. {{ chunk.page_number }}</span>{% endif %}
+            {% if chunk.extra.get("role") == "parent" %}<span class="pill pill-parent">parent</span>{% endif %}
+            <span class="chunk-tokens">{{ chunk.token_count }} tokens</span>
+          </summary>
+          <div class="chunk-body">
+            <pre class="chunk-text">{{ chunk.text }}</pre>
+            {% if chunk.window_text and chunk.window_text != chunk.text %}
+              <p class="eyebrow">Returned window</p>
+              <pre class="chunk-text chunk-window">{{ chunk.window_text }}</pre>
+            {% endif %}
+          </div>
+        </details>
+      {% endfor %}
+    </div>
+    {% if page > 1 or has_next %}
+      <div class="pager">
+        {% if page > 1 %}<a class="btn btn-ghost" href="?page={{ page - 1 }}">Previous</a>{% endif %}
+        <span class="muted">Page {{ page }}</span>
+        {% if has_next %}<a class="btn btn-ghost" href="?page={{ page + 1 }}">Next</a>{% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="empty card">
+      <p class="muted">
+        {% if document.status == "failed" %}Chunks are not available because processing failed.
+        {% else %}Chunks appear here once processing finishes.{% endif %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

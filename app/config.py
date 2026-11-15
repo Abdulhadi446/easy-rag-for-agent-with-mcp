@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEFAULT_EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+DEFAULT_EMBEDDING_MODEL = "Xenova/bge-small-en-v1.5"
 DEFAULT_EMBEDDING_DIM = 384
 DEFAULT_LLM_MODEL = "openrouter/free"
 DEFAULT_LLM_BASE_URL = "https://openrouter.ai/api/v1"
@@ -73,6 +73,7 @@ class Settings:
     embeddings_provider: str
     embedding_model: str
     embedding_dim: int
+    embedding_pooling: str
     embedding_base_url: str | None
     embedding_api_key: str | None
 
@@ -80,10 +81,15 @@ class Settings:
     llm_model: str
     llm_api_key: str | None
     llm_timeout: float
+    llm_max_tokens: int
+    agentic_max_tool_calls: int
 
     rerank_provider: str
     rerank_model: str
     cohere_api_key: str | None
+
+    worker_enabled: bool
+    worker_concurrency: int
 
     redis_url: str | None
     debug: bool
@@ -115,6 +121,7 @@ class Settings:
             embeddings_provider=embeddings_provider,
             embedding_model=os.environ.get("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL),
             embedding_dim=embedding_dim,
+            embedding_pooling=os.environ.get("EMBEDDING_POOLING", "").strip().lower(),
             embedding_base_url=os.environ.get("EMBEDDING_BASE_URL") or None,
             embedding_api_key=(
                 os.environ.get("EMBEDDING_API_KEY") or os.environ.get("OPENAI_API_KEY") or None
@@ -128,9 +135,13 @@ class Settings:
                 or None
             ),
             llm_timeout=_env_float("LLM_TIMEOUT", 120.0),
+            llm_max_tokens=_env_int("LLM_MAX_TOKENS", 1200),
+            agentic_max_tool_calls=_env_int("AGENTIC_MAX_TOOL_CALLS", 5),
             rerank_provider=os.environ.get("RERANK_PROVIDER", "local").strip().lower(),
             rerank_model=os.environ.get("RERANK_MODEL", "Xenova/ms-marco-MiniLM-L-6-v2"),
             cohere_api_key=os.environ.get("COHERE_API_KEY") or None,
+            worker_enabled=_env_bool("WORKER_ENABLED", True),
+            worker_concurrency=_env_int("WORKER_CONCURRENCY", 2),
             redis_url=os.environ.get("REDIS_URL") or None,
             debug=_env_bool("FLASK_DEBUG", False),
             testing=_env_bool("TESTING", False),

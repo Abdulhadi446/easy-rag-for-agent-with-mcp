@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Something broke · RAG MCP{% endblock %}
+{% block content %}
+<div class="empty card">
+  <p class="eyebrow">500</p>
+  <h1>Something went wrong</h1>
+  <p class="muted">The error was logged without document contents. Try again or check the server log.</p>
+  <a class="btn btn-primary" href="{{ url_for('knowledge_bases.index') }}">Back to knowledge bases</a>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Settings · {{ kb.name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">
+  <a href="{{ url_for('knowledge_bases.index') }}">Knowledge bases</a> /
+  <a href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">{{ kb.name }}</a> / settings
+</p>
+
+<section class="page-head">
+  <div>
+    <h1>Settings</h1>
+    <p class="lede">The defaults work well. Change these when you want to trade detail for speed, or tune retrieval for a specific corpus.</p>
+  </div>
+</section>
+
+<nav class="tabs" aria-label="Knowledge base sections">
+  <a class="tab" href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">Documents</a>
+  <a class="tab" href="{{ url_for('chat.page', kb_id=kb.id) }}">Chat</a>
+  <a class="tab is-active" href="{{ url_for('kb_settings.page', kb_id=kb.id) }}">Settings</a>
+  <a class="tab" href="{{ url_for('tokens.page', kb_id=kb.id) }}">Connect an agent</a>
+</nav>
+
+<form method="post" action="{{ url_for('kb_settings.save', kb_id=kb.id) }}" class="settings-form" id="settings-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="card settings-card">
+    <div class="settings-intro">
+      <p class="eyebrow">Step 1 · Chunking</p>
+      <h2>How documents are split</h2>
+      <p class="muted">Chunking decides what a single search result can contain. Smaller chunks match precise questions; larger chunks give the model more context.</p>
+    </div>
+
+    <div class="field">
+      <label for="chunk_strategy">Strategy</label>
+      <select id="chunk_strategy" name="chunk_strategy">
+        {% for value, label in strategies.items() %}
+          <option value="{{ value }}" {% if kb.chunk_strategy == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="field-help">
+        <strong>Recursive</strong> follows headings, paragraphs and sentences — the safest default.
+        <strong>Fixed size</strong> cuts every N tokens. <strong>Sentence window</strong> embeds one sentence but returns its neighbours.
+        <strong>Parent–child</strong> searches small child chunks and returns the larger parent. <strong>Semantic</strong> starts a new chunk when the topic shifts.
+      </p>
+    </div>
+
+    <div class="field-grid" data-strategies="recursive fixed semantic">
+      <div class="field">
+        <label for="chunk_size">Chunk size (tokens)</label>
+        <input id="chunk_size" name="chunk_size" type="number" min="100" max="2000" value="{{ kb.chunk_size }}" required>
+        <p class="field-help">About 500 tokens ≈ 375 words. Larger chunks carry more context but dilute precise matches.</p>
+      </div>
+      <div class="field">
+        <label for="chunk_overlap">Overlap (tokens)</label>
+        <input id="chunk_overlap" name="chunk_overlap" type="number" min="0" max="500" value="{{ kb.chunk_overlap }}">
+        <p class="field-help">Text repeated between neighbouring chunks so an answer split across a boundary is still findable. 10% of the chunk size is a good rule.</p>
+      </div>
+    </div>
+
+    <div class="field-grid" data-strategies="sentence_window">
+      <div class="field">
+        <label for="sentence_window_before">Sentences before</label>
+        <input id="sentence_window_before" name="sentence_window_before" type="number" min="0" max="10" value="{{ kb.sentence_window_before }}">
+        <p class="field-help">Context returned before the matched sentence. It is not embedded, so it costs nothing at search time.</p>
+      </div>
+      <div class="field">
+        <label for="sentence_window_after">Sentences after</label>
+        <input id="sentence_window_after" name="sentence_window_after" type="number" min="0" max="10" value="{{ kb.sentence_window_after }}">
+        <p class="field-help">Context returned after the matched sentence.</p>
+      </div>
+    </div>
+
+    <div class="field-grid" data-strategies="parent_child">
+      <div class="field">
+        <label for="parent_chunk_size">Parent size (tokens)</label>
+        <input id="parent_chunk_size" name="parent_chunk_size" type="number" min="200" max="4000" value="{{ kb.parent_chunk_size }}">
+        <p class="field-help">The large passage returned to the model. 800–1,500 tokens is a good range.</p>
+      </div>
+      <div class="field">
+        <label for="child_chunk_size">Child size (tokens)</label>
+        <input id="child_chunk_size" name="child_chunk_size" type="number" min="50" max="1000" value="{{ kb.child_chunk_size }}">
+        <p class="field-help">The small passages that are actually embedded and matched. Children must be smaller than parents.</p>
+      </div>
+    </div>
+
+    <div class="field" data-strategies="semantic">
+      <label for="semantic_threshold">Semantic split threshold</label>
+      <input id="semantic_threshold" name="semantic_threshold" type="number" min="0" max="1" step="0.01" value="{{ kb.semantic_threshold }}">
+      <p class="field-help">A new chunk starts when similarity between neighbouring sentences falls below this value. Higher = more, smaller chunks (0.75 is balanced).</p>
+    </div>
+
+    <div class="callout callout-info">
+      Changing any chunking option re-indexes ready documents in this knowledge base. Retrieval-only changes take effect immediately.
+    </div>
+  </section>
+
+  <section class="card settings-card">
+    <div class="settings-intro">
+      <p class="eyebrow">Step 2 · Retrieval</p>
+      <h2>How passages are found</h2>
+      <p class="muted">Every answer cites what it used. These options control which candidates reach the model.</p>
+    </div>
+
+    <div class="field">
+      <label for="retrieval_mode">Search mode</label>
+      <select id="retrieval_mode" name="retrieval_mode">
+        {% for value, label in modes.items() %}
+          <option value="{{ value }}" {% if kb.retrieval_mode == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="field-help">Hybrid runs both searches and fuses the rankings with Reciprocal Rank Fusion — best for questions that mix meaning with exact terms like error codes or product names.</p>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label for="top_k">Results returned</label>
+        <input id="top_k" name="top_k" type="number" min="1" max="20" value="{{ kb.top_k }}">
+        <p class="field-help">How many passages the answer may use. Five keeps answers focused; ten helps broad questions.</p>
+      </div>
+      <div class="field">
+        <label for="candidates">Candidate pool</label>
+        <input id="candidates" name="candidates" type="number" min="10" max="100" value="{{ kb.candidates }}">
+        <p class="field-help">Wider pool for the reranker to choose from. More candidates cost more rerank time but improve ordering.</p>
+      </div>
+    </div>
+
+    <label class="check">
+      <input type="checkbox" name="rerank_enabled" {% if kb.rerank_enabled %}checked{% endif %}>
+      <span>
+        <strong>Rerank candidates</strong>
+        <span class="field-help">
+          A cross-encoder re-reads the top candidates together with your question and reorders them.
+          {% if rerank_provider in ["", "none", "off"] %}
+            Currently <em>off</em> at the server level (RERANK_PROVIDER=none), so this toggle has no effect.
+          {% else %}
+            Reranking runs locally by default — no API key needed.
+          {% endif %}
+        </span>
+      </span>
+    </label>
+
+    <label class="check">
+      <input type="checkbox" name="query_rewrite_enabled" {% if kb.query_rewrite_enabled %}checked{% endif %}>
+      <span>
+        <strong>Rewrite vague questions before searching</strong>
+        <span class="field-help">One extra model call turns “what about refunds?” into a standalone search query. Helpful for conversational chat; unnecessary for keyword-style questions.</span>
+      </span>
+    </label>
+  </section>
+
+  <div class="settings-actions">
+    <button class="btn btn-primary" type="submit">Save settings</button>
+    <span class="muted">Defaults: {{ defaults.chunk_strategy }} · {{ defaults.chunk_size }} tokens · {{ defaults.retrieval_mode }} · top {{ defaults.top_k }}</span>
+  </div>
+</form>
+
+<form method="post" action="{{ url_for('kb_settings.reset', kb_id=kb.id) }}" class="settings-reset"
+      onsubmit="return confirm('Reset every option to its default? Documents will be re-indexed if chunking changes.')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-ghost" type="submit">Reset to defaults</button>
+</form>
+
+<script>
+(function () {
+  const select = document.getElementById("chunk_strategy");
+  const groups = Array.from(document.querySelectorAll("[data-strategies]"));
+  function sync() {
+    const strategy = select.value;
+    groups.forEach((group) => {
+      const applies = group.dataset.strategies.split(" ").includes(strategy);
+      group.hidden = !applies;
+    });
+  }
+  select.addEventListener("change", sync);
+  sync();
+})();
+</script>
+{% endblock %}

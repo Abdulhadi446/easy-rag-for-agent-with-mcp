@@ -1,0 +1,76 @@
+{
+  "name": "northwind-aurora-eval",
+  "description": "Hand-written questions whose answers appear verbatim in samples/.",
+  "questions": [
+    {
+      "question": "How long do refunds take after the item arrives?",
+      "expected": "5 to 7 business days",
+      "document": "northwind-policies.md"
+    },
+    {
+      "question": "How long do EU customers have to withdraw from a purchase?",
+      "expected": "14-day withdrawal right",
+      "document": "northwind-policies.md"
+    },
+    {
+      "question": "Is the original shipping fee refunded?",
+      "expected": "shipping fee is not refunded",
+      "document": "northwind-policies.md"
+    },
+    {
+      "question": "When is the deadline to change the billing address on an invoice?",
+      "expected": "before the 25th",
+      "document": "northwind-policies.md"
+    },
+    {
+      "question": "What interest is charged on late payments?",
+      "expected": "1.5% monthly interest",
+      "document": "northwind-policies.md"
+    },
+    {
+      "question": "How long is the hardware warranty?",
+      "expected": "two-year warranty",
+      "document": "northwind-policies.md"
+    },
+    {
+      "question": "How is customer data encrypted at rest?",
+      "expected": "AES-256",
+      "document": "northwind-policies.md"
+    },
+    {
+      "question": "How bright is the Aurora lamp?",
+      "expected": "650 lumens",
+      "document": "aurora-desk-lamp.md"
+    },
+    {
+      "question": "How much power does the Aurora wireless charging pad deliver?",
+      "expected": "15 W",
+      "document": "aurora-desk-lamp.md"
+    },
+    {
+      "question": "What should I check if the Aurora lamp flickers?",
+      "expected": "power supply is failing",
+      "document": "aurora-desk-lamp.md"
+    },
+    {
+      "question": "How should I clean the Aurora diffuser?",
+      "expected": "dry microfibre cloth",
+      "document": "aurora-desk-lamp.md"
+    },
+    {
+      "question": "What is the deadline for reporting damage on arrival?",
+      "expected": "48 hours",
+      "document": "support-macros.txt"
+    },
+    {
+      "question": "What does an out-of-warranty repair cost?",
+      "expected": "35 EUR",
+      "document": "support-macros.txt"
+    },
+    {
+      "question": "How long does VAT number validation take?",
+      "expected": "one business day",
+      "document": "northwind-policies.md"
+    }
+  ]
+}

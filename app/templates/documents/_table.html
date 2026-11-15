@@ -1,0 +1,42 @@
+{% if documents %}
+  <div class="card table-card" data-pending="{{ 1 if pending else 0 }}">
+    <table class="doc-table">
+      <thead>
+        <tr><th>File</th><th>Status</th><th>Pages</th><th>Chunks</th><th>Uploaded</th><th class="cell-actions">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for doc in documents %}
+          <tr>
+            <td class="doc-name">
+              <a href="{{ url_for('documents.show', kb_id=kb.id, document_id=doc.id) }}">{{ doc.filename }}</a>
+              {% if doc.error %}<p class="doc-error" title="{{ doc.error }}">{{ doc.error }}</p>{% endif %}
+            </td>
+            <td><span class="status status-{{ doc.status }}">{{ doc.status }}</span></td>
+            <td>{{ doc.page_count if doc.page_count is not none else "—" }}</td>
+            <td>{{ doc.chunk_count }}</td>
+            <td class="muted">{{ doc.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td class="cell-actions">
+              <form method="post" action="{{ url_for('documents.reprocess', kb_id=kb.id, document_id=doc.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-ghost btn-small" type="submit" title="Parse and embed again with the current settings">Re-index</button>
+              </form>
+              <form method="post" action="{{ url_for('documents.delete', kb_id=kb.id, document_id=doc.id) }}"
+                    onsubmit="return confirm('Delete this document and all of its chunks?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-ghost btn-small btn-danger" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if pending %}
+      <p class="table-foot muted"><span class="spinner" aria-hidden="true"></span> Processing documents — this table refreshes automatically.</p>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="empty card">
+    <h2>No documents yet</h2>
+    <p class="muted">Upload your first PDF, Markdown or TXT above. Results appear here with status and chunk counts.</p>
+  </div>
+{% endif %}

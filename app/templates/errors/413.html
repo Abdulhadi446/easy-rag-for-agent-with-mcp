@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Upload too large · RAG MCP{% endblock %}
+{% block content %}
+<div class="empty card">
+  <p class="eyebrow">413</p>
+  <h1>That file is too large</h1>
+  <p class="muted">Uploads are limited to {{ limit }} MB. Split the document or raise MAX_UPLOAD_MB.</p>
+  <a class="btn btn-primary" href="{{ url_for('knowledge_bases.index') }}">Back</a>
+</div>
+{% endblock %}

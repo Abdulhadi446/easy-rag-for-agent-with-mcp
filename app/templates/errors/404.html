@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Not found · RAG MCP{% endblock %}
+{% block content %}
+<div class="empty card">
+  <p class="eyebrow">404</p>
+  <h1>This page does not exist</h1>
+  <p class="muted">The link may be stale, or the resource belongs to someone else.</p>
+  <a class="btn btn-primary" href="{{ url_for('knowledge_bases.index') }}">Back to knowledge bases</a>
+</div>
+{% endblock %}

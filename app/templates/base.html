@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}RAG MCP{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230d1114'/><path d='M9 21V11h5.2a3.2 3.2 0 0 1 0 6.4H9m6 0 4.5 3.6' stroke='%233ddc97' stroke-width='2.4' fill='none' stroke-linecap='round'/></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <header class="topbar">
+      <a class="brand" href="{{ url_for('knowledge_bases.index') if current_user else url_for('auth.login') }}">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <span class="brand-name">rag<b>/</b>mcp</span>
+      </a>
+      {% if current_user %}
+        <nav class="topnav" aria-label="Main">
+          <a href="{{ url_for('knowledge_bases.index') }}">Knowledge bases</a>
+        </nav>
+        <div class="account">
+          <span class="account-email" title="{{ current_user.email }}">{{ current_user.email }}</span>
+          <form method="post" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-ghost btn-small" type="submit">Sign out</button>
+          </form>
+        </div>
+      {% endif %}
+    </header>
+
+    <main class="shell">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flashes">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}" role="status">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+      <span>Documents stay yours. Every search is scoped to one knowledge base.</span>
+      <span class="footer-muted">local embeddings · hybrid retrieval · MCP</span>
+    </footer>
+  </body>
+</html>

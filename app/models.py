@@ -27,7 +27,9 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
-    text,
+)
+from sqlalchemy import (
+    text as sql_text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -61,7 +63,7 @@ def _uuid_pk() -> Mapped[uuid.UUID]:
     return mapped_column(
         Uuid(as_uuid=True),
         primary_key=True,
-        server_default=text("gen_random_uuid()"),
+        server_default=sql_text("gen_random_uuid()"),
     )
 
 
@@ -86,7 +88,7 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(120))
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sql_text("true"))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     knowledge_bases: Mapped[list[KnowledgeBase]] = relationship(
@@ -106,37 +108,37 @@ class KnowledgeBase(TimestampMixin, Base):
 
     # Ingestion settings -----------------------------------------------------
     chunk_strategy: Mapped[str] = mapped_column(
-        String(32), nullable=False, server_default=text("'recursive'")
+        String(32), nullable=False, server_default=sql_text("'recursive'")
     )
-    chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("500"))
-    chunk_overlap: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("50"))
+    chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sql_text("500"))
+    chunk_overlap: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sql_text("50"))
     sentence_window_before: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("3")
+        Integer, nullable=False, server_default=sql_text("3")
     )
     sentence_window_after: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("3")
+        Integer, nullable=False, server_default=sql_text("3")
     )
     parent_chunk_size: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("1000")
+        Integer, nullable=False, server_default=sql_text("1000")
     )
     child_chunk_size: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("200")
+        Integer, nullable=False, server_default=sql_text("200")
     )
     semantic_threshold: Mapped[float] = mapped_column(
-        Float, nullable=False, server_default=text("0.75")
+        Float, nullable=False, server_default=sql_text("0.75")
     )
 
     # Retrieval settings -----------------------------------------------------
     retrieval_mode: Mapped[str] = mapped_column(
-        String(16), nullable=False, server_default=text("'hybrid'")
+        String(16), nullable=False, server_default=sql_text("'hybrid'")
     )
-    top_k: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("5"))
-    candidates: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("40"))
+    top_k: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sql_text("5"))
+    candidates: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sql_text("40"))
     rerank_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
+        Boolean, nullable=False, server_default=sql_text("true")
     )
     query_rewrite_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false")
+        Boolean, nullable=False, server_default=sql_text("false")
     )
 
     # Stamped so a knowledge base can never be searched with a foreign vector space.
@@ -161,7 +163,7 @@ class ApiToken(Base):
     knowledge_base_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    name: Mapped[str] = mapped_column(String(120), nullable=False, server_default=text("'agent'"))
+    name: Mapped[str] = mapped_column(String(120), nullable=False, server_default=sql_text("'agent'"))
     prefix: Mapped[str] = mapped_column(String(16), nullable=False)
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -189,13 +191,13 @@ class Document(TimestampMixin, Base):
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(
-        String(16), nullable=False, server_default=text("'queued'"), index=True
+        String(16), nullable=False, server_default=sql_text("'queued'"), index=True
     )
     error: Mapped[str | None] = mapped_column(Text)
     page_count: Mapped[int | None] = mapped_column(Integer)
-    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
-    outline: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
-    meta: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sql_text("0"))
+    outline: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=sql_text("'[]'::jsonb"))
+    meta: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=sql_text("'{}'::jsonb"))
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     knowledge_base: Mapped[KnowledgeBase] = relationship(back_populates="documents")
@@ -232,12 +234,12 @@ class Chunk(Base):
     page_number: Mapped[int | None] = mapped_column(Integer)
     heading_path: Mapped[str | None] = mapped_column(Text)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    token_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sql_text("0"))
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("chunks.id", ondelete="CASCADE"), index=True
     )
     window_text: Mapped[str | None] = mapped_column(Text)
-    extra: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    extra: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default=sql_text("'{}'::jsonb"))
     content_tsv: Mapped[str] = mapped_column(
         TSVECTOR, Computed(TSVECTOR_EXPRESSION, persisted=True), nullable=True
     )
@@ -263,11 +265,11 @@ class Job(Base):
     document_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"), index=True
     )
-    kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default=text("'ingest'"))
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default=sql_text("'ingest'"))
     status: Mapped[str] = mapped_column(
-        String(16), nullable=False, server_default=text("'queued'")
+        String(16), nullable=False, server_default=sql_text("'queued'")
     )
-    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sql_text("0"))
     error: Mapped[str | None] = mapped_column(Text)
     run_after: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

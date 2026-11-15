@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ kb.name }} · RAG MCP{% endblock %}
+{% block content %}
+<section class="page-head kb-head">
+  <div>
+    <p class="eyebrow"><a href="{{ url_for('knowledge_bases.index') }}">Knowledge bases</a> / {{ kb.name }}</p>
+    <h1>{{ kb.name }}</h1>
+    <p class="lede">{{ kb.description or "No description yet." }}</p>
+  </div>
+  <div class="kb-actions">
+    <span class="pill pill-soft">{{ kb.chunk_strategy }} · {{ kb.chunk_size }} tokens</span>
+    <span class="pill pill-soft">{{ kb.retrieval_mode }} · top {{ kb.top_k }}</span>
+  </div>
+</section>
+
+<nav class="tabs" aria-label="Knowledge base sections">
+  <a class="tab is-active" href="{{ url_for('knowledge_bases.show', kb_id=kb.id) }}">Documents</a>
+  <a class="tab" href="{{ url_for('chat.page', kb_id=kb.id) }}">Chat</a>
+  <a class="tab" href="{{ url_for('kb_settings.page', kb_id=kb.id) }}">Settings</a>
+  <a class="tab" href="{{ url_for('tokens.page', kb_id=kb.id) }}">Connect an agent</a>
+</nav>
+
+<form class="card upload-card" method="post" enctype="multipart/form-data"
+      action="{{ url_for('documents.upload', kb_id=kb.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="upload-main">
+    <div class="upload-copy">
+      <p class="eyebrow">Add documents</p>
+      <h2>Drop in PDFs, Markdown or TXT</h2>
+      <p class="muted">Text is extracted, chunked, embedded and indexed automatically. Text-based PDFs only — scanned pages need OCR first.</p>
+    </div>
+    <div class="upload-controls">
+      <label class="file-picker">
+        <input id="file-input" type="file" name="files" multiple
+               accept=".pdf,.md,.markdown,.txt,application/pdf,text/markdown,text/plain" required>
+        <span class="file-picker-btn">Choose files</span>
+        <span id="file-count" class="file-picker-label">No files selected</span>
+      </label>
+      <button class="btn btn-primary" type="submit">Upload &amp; index</button>
+    </div>
+  </div>
+  <p class="upload-hint">Up to {{ settings.max_upload_mb }} MB per file · duplicate files are skipped · failed uploads can be retried.</p>
+</form>
+
+<div id="documents-panel"
+     data-poll-url="{{ url_for('documents.table_fragment', kb_id=kb.id) }}">
+  {% include "documents/_table.html" %}
+</div>
+
+<script>
+(function () {
+  const input = document.getElementById("file-input");
+  const count = document.getElementById("file-count");
+  if (input && count) {
+    input.addEventListener("change", () => {
+      const n = input.files.length;
+      count.textContent = n ? `${n} file${n === 1 ? "" : "s"} selected` : "No files selected";
+    });
+  }
+
+  const panel = document.getElementById("documents-panel");
+  if (!panel) return;
+  async function refresh() {
+    if (!panel.querySelector("[data-pending='1']")) return;
+    try {
+      const response = await fetch(panel.dataset.pollUrl, { headers: { "X-Requested-With": "fetch" } });
+      if (response.ok) {
+        panel.innerHTML = await response.text();
+      }
+    } catch (error) { /* keep polling while the server is busy */ }
+    schedule();
+  }
+  function schedule() {
+    if (panel.querySelector("[data-pending='1']")) setTimeout(refresh, 2500);
+  }
+  schedule();
+})();
+</script>
+{% endblock %}
