@@ -21,7 +21,7 @@ open the settings page.
 **Demo login:** `demo@example.com` / `demo-password` (created by `flask seed-demo`).
 There is no hosted instance — run it locally in about two minutes.
 
-[Watch the 32-second demo (MP4)](docs/demo.mp4) · [Screenshots](#screenshots) · [Quick start](#quick-start) · [MCP setup](#connect-an-agent-mcp)
+[Watch the 32-second demo (MP4)](docs/demo.mp4) · [Screenshots](#screenshots) · [Quick start](#quick-start) · [MCP setup](#connect-an-agent-mcp) · [Source on GitHub](https://github.com/Abdulhadi446/easy-rag-for-agent-with-mcp)
 
 ---
 
@@ -329,7 +329,7 @@ All of it is overridable per knowledge base under **Settings**, with a **Reset t
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-handle/easy-rag-for-agent-with-mcp.git
+git clone https://github.com/Abdulhadi446/easy-rag-for-agent-with-mcp.git
 cd easy-rag-for-agent-with-mcp
 
 uv venv
