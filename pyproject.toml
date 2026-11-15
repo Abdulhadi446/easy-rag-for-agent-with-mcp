@@ -1,0 +1,55 @@
+[project]
+name = "easy-rag-mcp"
+version = "0.1.0"
+description = "Upload documents, chat with them, or plug any MCP agent into your own knowledge bases."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "MIT" }
+dependencies = [
+    "flask>=3.0.0",
+    "sqlalchemy>=2.0.30",
+    "alembic>=1.13.0",
+    "psycopg[binary]>=3.2.0",
+    "pgvector>=0.3.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.27.0",
+    "pymupdf>=1.24.0",
+    "tiktoken>=0.7.0",
+    "onnxruntime>=1.18.0",
+    "tokenizers>=0.20.0",
+    "huggingface-hub>=0.24.0",
+    "numpy>=1.26.0",
+    "mcp>=1.2.0",
+    "uvicorn>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+rag-mcp = "app.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "ingestion", "retrieval", "mcp_server"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
